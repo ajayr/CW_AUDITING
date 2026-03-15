@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Running Analytics</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f4f6f9;
+            color: #2c3e50;
+        }
+
+        /* ── Top Nav ── */
+        nav {
+            background: #1a1a2e;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+          nav a.brand {
+        color: #e94560;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 18px 0;
+        margin-right: 24px;
+        border-bottom: none;         /* never shows the active underline */
+        text-decoration: none;
+    }
+nav a.brand:hover {
+    color: #e94560;              /* stays red, doesn't go white like other nav links */
+}
+
+        nav a {
+            color: #a0aec0;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 20px 16px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        nav a:hover { color: #ffffff; }
+        nav a.active {
+            color: #ffffff;
+            border-bottom: 3px solid #e94560;
+        }
+
+        /* ── Page wrapper ── */
+        .page { max-width: 1200px; margin: 40px auto; padding: 0 32px; }
+
+        /* ── Page header ── */
+        .page-header { margin-bottom: 32px; }
+        .page-header h1 { font-size: 1.8rem; font-weight: 700; }
+        .page-header p  { color: #718096; margin-top: 6px; font-size: 0.95rem; }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="brand"> Run Analytics</a>
+    <a href="/dashboard" class="{{ 'active' if active_tab == 'dashboard' }}">Dashboard</a>
+    <a href="/heatmap"   class="{{ 'active' if active_tab == 'heatmap'  }}">Heatmaps</a>
+    <a href="/predict"   class="{{ 'active' if active_tab == 'predict'  }}">Predict</a>
+</nav>
+
+
+<div class="page">
+    {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

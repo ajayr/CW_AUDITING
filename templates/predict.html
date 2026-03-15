@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    margin: 0 0 32px;
+  }
+
+  .section-head {
+    font-size: 0.8rem;
+    color: #e74c3c;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 1.2rem;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.4rem 1.8rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field label {
+    font-size: 0.92rem;
+    color: #333;
+    font-weight: 550;
+  }
+
+  .field .small-hint {
+    font-size: 0.78rem;
+    color: #777;
+    margin-top: -3px;
+  }
+
+  input, select {
+    padding: 9px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fefefe;
+    font-size: 0.96rem;
+  }
+
+  input:focus, select:focus {
+    border-color: #e74c3c;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+  }
+
+  .big-red-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 14px 36px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 1.6rem;
+  }
+
+  .big-red-btn:hover {
+    background: #c0392b;
+  }
+
+  .result {
+    background: #1e272e;
+    color: white;
+    padding: 2.5rem 1.2rem;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+
+  .result .label {
+    font-size: 0.9rem;
+    color: #bdc3c7;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+  }
+
+  .result .big-time {
+    font-size: 3.4rem;
+    font-weight: 700;
+    color: #e74c3c;
+  }
+
+  .oops {
+    background: #fff0f0;
+    border: 1px solid #ffcccc;
+    color: #c00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<h1 style="margin-bottom: 0.4rem;">Marathon Time Predictor</h1>
+<p style="color:#555; margin-bottom: 2rem;">Enter your details.</p>
+
+{% if prediction %}
+<div class="result">
+  <div class="label">Your predicted finish time</div>
+  <div class="big-time">{{ prediction }}</div>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="oops">{{ error }}</div>
+{% endif %}
+
+<form method="POST" action="/predict">
+
+  <div class="card">
+    <div class="section-head">The Race</div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Goal time</label>
+        <span class="small-hint">like 3:30 or 4:15</span>
+        <input type="text" name="target_finish_time" placeholder="4:00"
+               pattern="\d+:\d{2}" required
+               value="{{ request.form.get('target_finish_time', '4:00') }}">
+      </div>
+
+      <div class="field">
+        <label>Your current PB (marathon)</label>
+        <span class="small-hint">best time so far</span>
+        <input type="text" name="personal_best" placeholder="4:30" pattern="\d+:\d{2}"
+               value="{{ request.form.get('personal_best', '') }}">
+      </div>
+
+      <div class="field">
+        <label>Course terrain</label>
+        <select name="course_difficulty">
+          <option value="Flat"    {% if request.form.get('course_difficulty') == 'Flat'    %}selected{% endif %}>Flat & fast</option>
+          <option value="Mixed"   {% if request.form.get('course_difficulty') == 'Mixed'   %}selected{% endif %}>Some hills</option>
+          <option value="Hilly"   {% if request.form.get('course_difficulty') == 'Hilly'   %}selected{% endif %}>Proper hilly</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Weather forecast</label>
+        <select name="marathon_weather">
+          <option {% if not request.form.get('marathon_weather') %}selected{% endif %}>— pick one —</option>
+          {% for w in ['Sunny', 'Cloudy', 'Hot', 'Rainy', 'Windy'] %}
+          <option value="{{w}}" {{ 'selected' if request.form.get('marathon_weather') == w }}>{{w}}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Which month?</label>
+        <select name="race_month">
+          <option value="">—</option>
+          {% set mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+          {% for i in range(1,13) %}
+          <option value="{{i}}" {{ 'selected' if request.form.get('race_month')|int(default=0) == i }}>
+            {{ mnames[i-1] }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">Your fitness details</div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>How long have you been running?</label>
+        <span class="small-hint">months</span>
+        <input type="number" name="running_experience_months" min="0" placeholder="24"
+               value="{{ request.form.get('running_experience_months', '24') }}">
+      </div>
+
+      <div class="field">
+        <label>Resting heart rate</label>
+        <span class="small-hint">bpm</span>
+        <input type="number" name="resting_heart_rate_bpm" min="30" max="110" placeholder="58–62ish"
+               value="{{ request.form.get('resting_heart_rate_bpm', '60') }}">
+      </div>
+
+      <div class="field">
+        <label>VO2 max</label>
+        <span class="small-hint">sure default if not known</span>
+        <input type="number" name="vo2_max" step="0.5" min="20" max="85" placeholder="44"
+               value="{{ request.form.get('vo2_max', '') }}">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">Injuries 😬</div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Injuries</label>
+        <select name="injury_severity">
+          {% for opt in ['None', 'Small', 'Moderate', 'Bad'] %}
+          <option value="{{opt}}" {{ 'selected' if request.form.get('injury_severity') == opt }}>
+            {{opt}}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>How many injuries do you currently have?</label>
+        <input type="number" name="injury_count" min="0" max="8" placeholder="0"
+               value="{{ request.form.get('injury_count', '0') }}">
+      </div>
+
+    </div>
+  </div>
+
+  <button type="submit" class="big-red-btn">Tell me my time →</button>
+
+</form>
+
+{% endblock %}
