@@ -132,7 +132,7 @@
 
       <div class="field">
         <label>Goal time</label>
-        <span class="small-hint">like 3:30 or 4:15</span>
+        <span class="small-hint">Please choose a realistic target (in H:MM)</span>
         <input type="text" name="target_finish_time" placeholder="4:00"
                pattern="\d+:\d{2}" required
                value="{{ request.form.get('target_finish_time', '4:00') }}">
@@ -140,7 +140,7 @@
 
       <div class="field">
         <label>Your current PB (marathon)</label>
-        <span class="small-hint">best time so far</span>
+        <span class="small-hint">best time so far (in H:MM)</span>
         <input type="text" name="personal_best" placeholder="4:30" pattern="\d+:\d{2}"
                value="{{ request.form.get('personal_best', '') }}">
       </div>
@@ -194,13 +194,13 @@
       <div class="field">
         <label>Resting heart rate</label>
         <span class="small-hint">bpm</span>
-        <input type="number" name="resting_heart_rate_bpm" min="30" max="110" placeholder="58–62ish"
+        <input type="number" name="resting_heart_rate_bpm" min="30" max="110"
                value="{{ request.form.get('resting_heart_rate_bpm', '60') }}">
       </div>
 
       <div class="field">
         <label>VO2 max</label>
-        <span class="small-hint">sure default if not known</span>
+        <span class="small-hint">if not known, default, Male:50, Female: 45</span>
         <input type="number" name="vo2_max" step="0.5" min="20" max="85" placeholder="44"
                value="{{ request.form.get('vo2_max', '') }}">
       </div>
@@ -209,7 +209,7 @@
   </div>
 
   <div class="card">
-    <div class="section-head">Injuries 😬</div>
+    <div class="section-head">Injuries</div>
     <div class="form-grid">
 
       <div class="field">

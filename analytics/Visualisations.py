@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.dates as mdates
 from analytics.RunningAnalytics import RunningAnalyticsClass
 from analytics.JoinedDataLoader import JoinedDataLoaderClass
+import pandas as pd
+
 
 class VisualisationDashboardClass(RunningAnalyticsClass):
 
@@ -23,15 +25,68 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
         plt.close(fig)
         return buf.read()
 
+    def _SavitzkyGolayFilter(self, window_length =31, polyorder = 3, deriv = 0 ):
+        if window_length <= 2:
+            raise ValueError("window_length must be odd")
+        if polyorder>window_length:
+            raise ValueError("polyorder must be smaller than window_length")
+
+        half = (window_length-1) // 2
+        x = np.arange(-half, half +1)
+
+        VandermondeMatrix = np.vander(x, polyorder+1, increasing = True)
+
+        if deriv == 0:
+            target = np.zeros(polyorder+1)
+            target[0] = 1
+        else:
+            target = np.zeros(polyorder+1)
+            target[deriv] = np.math.factorial(deriv)
+
+        kernelcoeff = np.linalg.pinv(VandermondeMatrix) @ target
+        return kernelcoeff
+
+    def _ApplySavitzkyGolayFilter(self, series, window = 31, order = 3):
+        kernel = self._SavitzkyGolayFilter(window, order)
+        smoothedsignal = np.convolve(series.values, kernel[::-1], mode='same')
+        return pd.Series(smoothedsignal, index=series.index)
+
+
+
     def DistanceOverTime(self) -> bytes:
         df = self.df.dropna(subset=["Distance", "Date"]).copy()
         df["Rolling"] = df["Distance"].rolling(window=4, min_periods=1).mean()
+        sg_window = 61
+        sg_order = 3
+        try:
+            df["savgol_distance"] = self._ApplySavitzkyGolayFilter(
+                df["Rolling"],
+                window=sg_window,
+                order=sg_order
+            )
+        except Exception as e:
+            print(f"Savitzky-Golay failed: {e}")
+            df["savgol_distance"] = df["Rolling"]  # fallback
+
+        df = df.reset_index()
+
 
         fig, ax = self._NewFig()
         ax.scatter(df["Date"], df["Distance"],
                    s=15, alpha=0.5, color="royalblue", label="Run Distance")
         ax.plot(df["Date"], df["Rolling"],
                 color="tomato", linewidth=1.8, label="4-run Rolling Avg")
+
+        ax.plot(
+            df["Date"], df["savgol_distance"],
+            color="#c0392b",  # strong red to stand out
+            linewidth=2.8,
+            linestyle="--",
+            label=f"Savitzky–Golay (win={sg_window}, order={sg_order})",
+            zorder=4,
+            alpha=0.95
+        )
+
         ax.set(title="Distance Over Time", xlabel="Date", ylabel="Distance (km)")
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
         ax.legend()
@@ -56,6 +111,21 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
         df["rolling_eff"] = df["efficiency"].rolling("30D", min_periods=1).mean()
         df = df.reset_index()
 
+        sg_window = 61
+        sg_order = 3
+        try:
+            df["savgol_eff"] = self._ApplySavitzkyGolayFilter(
+                df["efficiency"],
+                window=sg_window,
+                order=sg_order
+            )
+        except Exception as e:
+            print(f"Savitzky-Golay failed: {e}")
+            df["savgol_eff"] = df["rolling_eff"]  # fallback
+
+        df = df.reset_index()
+
+
         colours = {
             "Easy":      "#4a90d9",
             "Threshold": "#e94560",
@@ -65,6 +135,8 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
         }
 
         fig, ax = self._NewFig()
+
+
         fig.set_size_inches(14, 6)
 
         for runType, colour in colours.items():
@@ -78,6 +150,15 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
         ax.plot(df["Date"], df["rolling_eff"],
                 color="#2c3e50", linewidth=2,
                 label="30-day Rolling Avg", zorder=3)
+        ax.plot(
+            df["Date"], df["savgol_eff"],
+            color="#c0392b",  # strong red to stand out
+            linewidth=2.8,
+            linestyle="--",
+            label=f"Savitzky–Golay (win={sg_window}, order={sg_order})",
+            zorder=4,
+            alpha=0.95
+        )
 
         ax.set(
             title="Running Efficiency (Speed/HR) Over Time",
