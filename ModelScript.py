@@ -175,14 +175,4 @@ shapValues = explainer.shap_values(Xall)
 
 shap.summary_plot(shapValues, Xall, plot_type="bar", max_display=15, show=True)
 shap.summary_plot(shapValues, Xall, max_display=15, show=True)
-# shap.force_plot(      FORCE PLOT CURRENTLY NOT WORKING
-#     explainer.expected_value,
-#     shapValues[0],      # single row
-#     Xall.iloc[0],       # single row
-#     matplotlib=True,
-#     show=False
-# )
-#
-# plt.savefig("force_plot.png", dpi=300, bbox_inches="tight")
-# plt.close()
 print("Done")

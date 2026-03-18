@@ -1,17 +1,116 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Dashboard</h1>
-    <p>Overview of your running performance</p>
-</div>
+<div class="container py-4">
+  <h1 class="mb-2">Dashboard</h1>
+  <p class="text-muted mb-4">Overview of your running performance</p>
 
-{% for key, title in chart_meta.items() %}
-<div style="background:white; border-radius:10px; padding:24px; margin-bottom:24px;
-            box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-    <h2 style="font-size:1rem; margin-bottom:16px; color:#4a5568;">{{ title }}</h2>
-    <img src="/chart/{{ key }}" style="width:100%;" alt="{{ title }}">
-</div>
-{% endfor %}
+  {% for key, title in chart_meta.items() %}
+    <section class="mb-5">
+      <h2 class="h4 mb-3">{{ title }}</h2>
 
+      {% if key == "efficiency_over_time" %}
+        <form method="get" action="{{ url_for('index') }}" class="row g-3 align-items-end mb-3">
+          <div class="col-md-4">
+            <label for="start_date" class="form-label">Start date</label>
+            <input
+              type="date"
+              id="start_date"
+              name="start_date"
+              class="form-control"
+              value="{{ request.args.get('start_date', '') }}"
+            >
+          </div>
+
+          <div class="col-md-4">
+            <label for="end_date" class="form-label">End date</label>
+            <input
+              type="date"
+              id="end_date"
+              name="end_date"
+              class="form-control"
+              value="{{ request.args.get('end_date', '') }}"
+            >
+          </div>
+
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-primary">Update graph</button>
+          </div>
+        </form>
+
+        <div class="card shadow-sm">
+          <div class="card-body text-center">
+            <img
+              src="{{ url_for('get_chart', chart_name=key, start_date=request.args.get('start_date'), end_date=request.args.get('end_date')) }}"
+              alt="{{ title }}"
+              class="img-fluid rounded"
+            >
+          </div>
+        </div>
+      {% else %}
+        <div class="card shadow-sm">
+          <div class="card-body text-center">
+            <img
+              src="{{ url_for('get_chart', chart_name=key) }}"
+              alt="{{ title }}"
+              class="img-fluid rounded"
+            >
+          </div>
+        </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+
+  {% if monthly %}
+    <section class="mb-5">
+      <h2 class="h4 mb-3">Monthly Summary</h2>
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+          <thead>
+            <tr>
+              {% for col in monthly[0].keys() %}
+                <th>{{ col }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in monthly %}
+              <tr>
+                {% for value in row.values() %}
+                  <td>{{ value }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if yearly %}
+    <section class="mb-5">
+      <h2 class="h4 mb-3">Yearly Summary</h2>
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+          <thead>
+            <tr>
+              {% for col in yearly[0].keys() %}
+                <th>{{ col }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in yearly %}
+              <tr>
+                {% for value in row.values() %}
+                  <td>{{ value }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+</div>
 {% endblock %}

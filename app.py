@@ -113,8 +113,19 @@ def index():
 def get_chart(chart_name: str):
     if chart_name not in graphs:
         abort(404)
-    pngBytes = graphs[chart_name][1]()
-    return send_file(io.BytesIO(pngBytes), mimetype="image/png")
+
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    if chart_name == "efficiency_over_time":
+        png_bytes = graphs[chart_name][1](
+            start_date=start_date,
+            end_date=end_date
+        )
+    else:
+        png_bytes = graphs[chart_name][1]()
+
+    return send_file(io.BytesIO(png_bytes), mimetype="image/png")
 
 
 @app.route("/heatmap", methods=["GET", "POST"])
