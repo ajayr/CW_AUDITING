@@ -8,11 +8,10 @@ from retry_requests import retry
 
 OutputPath = Path(__file__).resolve().parent / "WeatherData.csv"
 
-# ── Only generate if file doesn't already exist ───────────────────────────
 if OutputPath.exists():
     print(f"WeatherData.csv already exists at '{OutputPath}' — skipping generation.")
 else:
-    # ── API setup ─────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────── #API setup
     cacheSession = requests_cache.CachedSession('.cache', expire_after=-1)
     retrySession = retry(cacheSession, retries=5, backoff_factor=0.2)
     openmeteo    = openmeteo_requests.Client(session=retrySession)
@@ -30,14 +29,14 @@ else:
         ],
     }
 
-    # ── Fetch ─────────────────────────────────────────────────────────────
+    # ───────────────────────────────────────────────────────────────
     responses = openmeteo.weather_api(url, params=params)
     response  = responses[0]
 
     print(f"Coordinates : {response.Latitude()}°N {response.Longitude()}°E")
     print(f"Elevation   : {response.Elevation()} m asl")
 
-    # ── Build dataframe ───────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────
     hourly = response.Hourly()
 
     df = pd.DataFrame({

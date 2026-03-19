@@ -166,13 +166,13 @@ else:
     print("\npredictions.csv already exists — skipping training.")
     print("Loading saved model for SHAP plots...")
     finalModel = joblib.load(ModelPath)
-
-# ── SHAP plots always run ─────────────────────────────────────────────────
+#---------------------------------------------------------------------------------------------
+#shap plots
 print("\nGenerating SHAP plots")
 
 explainer  = shap.TreeExplainer(finalModel)
 shapValues = explainer.shap_values(Xall)
 
-shap.summary_plot(shapValues, Xall, plot_type="bar", max_display=15, show=True)
-shap.summary_plot(shapValues, Xall, max_display=15, show=True)
+shap.summary_plot(shapValues, Xall, plot_type="bar", max_display=15, show=True) 
+shap.summary_plot(shapValues, Xall, max_display=15, show=True) #beeswarm
 print("Done")

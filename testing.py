@@ -1,0 +1,56 @@
+# testing.py
+"""
+Pytest file – Input & Inference section
+Tests 1–2: time string → minutes conversion using DataLoaderClass._TimeToSeconds
+"""
+
+import pytest
+import numpy as np
+
+# Change 'dataloader' to match your actual file name
+# Examples:
+#   from dataloader import DataLoaderClass
+#   from DataLoader import DataLoaderClass
+from analytics.DataLoader import DataLoaderClass   # ← ← ← ADJUST THIS LINE
+
+
+# Helper wrapper – mimics how your inference code probably uses this method
+def time_str_to_minutes(time_str):
+    """
+    Calls the internal _TimeToSeconds method and converts result to minutes.
+    Returns float minutes or np.nan if invalid/unparseable.
+    """
+    # We create a dummy instance just to access the method (no real file needed)
+    dummy_loader = DataLoaderClass.__new__(DataLoaderClass)
+    seconds = dummy_loader._TimeToSeconds(time_str)
+    if np.isnan(seconds):
+        return np.nan
+    return seconds / 60.0
+
+
+# ───────────────────────────────────────────────
+# Test 1: Normal cases – valid HH:MM strings
+# ───────────────────────────────────────────────
+def test_time_conversion_normal():
+    assert time_str_to_minutes("00:08:45") == 525.0
+    assert time_str_to_minutes("00:14:30") == 870.0
+    assert time_str_to_minutes("00:00:15") == 15.0
+    assert time_str_to_minutes("00:23:00") == 1380.0
+    assert time_str_to_minutes("00:19:22") == (19 * 60 + 22)          # 1162.0
+    assert time_str_to_minutes("00:05:09") == pytest.approx(309.0)    # allows tiny float diff
+
+
+# ───────────────────────────────────────────────
+# Test 2: Boundary minimum – 00:00
+# ───────────────────────────────────────────────
+def test_time_conversion_boundary_min():
+    assert time_str_to_minutes("00:00") == 0.0
+
+
+# Optional: quick smoke test that invalid inputs become nan
+# (you can move this to test 4/5 later)
+def test_time_conversion_invalid_becomes_nan():
+    assert np.isnan(time_str_to_minutes("abc"))
+    assert np.isnan(time_str_to_minutes("25:00"))
+    assert np.isnan(time_str_to_minutes(""))
+    assert np.isnan(time_str_to_minutes("--"))
