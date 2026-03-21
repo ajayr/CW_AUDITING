@@ -1,5 +1,6 @@
 import io
 from abc import ABC, abstractmethod
+from collections import deque
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -7,6 +8,16 @@ import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 from analytics.mergesort import mergesort, mergesort_dataframe
+
+
+def _deque_rolling_mean(values, window):
+    """Compute rolling mean with min_periods=1 using a fixed-size deque."""
+    result = []
+    dq = deque(maxlen=window)
+    for val in values:
+        dq.append(val)
+        result.append(sum(dq) / len(dq))
+    return result
 
 
 class ChartGenerator(ABC):
@@ -87,7 +98,7 @@ class DistanceOverTimeChart(ChartGenerator):
 
     def generate(self, df, **kwargs) -> bytes:
         df = df.dropna(subset=["Distance", "Date"]).copy()
-        df["Rolling"] = df["Distance"].rolling(window=4, min_periods=1).mean()
+        df["Rolling"] = _deque_rolling_mean(df["Distance"].tolist(), window=4)
         sg_window = 61
         sg_order = 3
         try:

@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 from analytics.Visualisations import VisualisationDashboardClass
 from analytics.JoinedDataLoader import JoinedDataLoaderClass
+from analytics.hashtable import HashTable
 
 app = Flask(__name__)
 app.secret_key = "running-analytics-secret"
@@ -45,8 +46,8 @@ WeatherDerivedCols = [
     "running_stress_score", "cloud_fraction",
 ]
 
-InjuryMap = {"None": 0, "Minor": 1, "Moderate": 2, "Severe": 3}
-CourseMap = {"Flat": 0, "Mixed": 1, "Hilly": 2}
+InjuryMap = HashTable({"None": 0, "Minor": 1, "Moderate": 2, "Severe": 3})
+CourseMap = HashTable({"Flat": 0, "Mixed": 1, "Hilly": 2})
 
 def _FilterExisting(cols):
     available = joinedLoader.GetAvailableCols()
