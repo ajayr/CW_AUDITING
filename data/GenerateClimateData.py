@@ -3,6 +3,7 @@
 import openmeteo_requests
 import pandas as pd
 import requests_cache
+from analytics.mergesort import mergesort_dataframe
 from pathlib import Path
 from retry_requests import retry
 
@@ -89,4 +90,4 @@ garmin["Date"] = pd.to_datetime(garmin["Date"], errors="coerce")
 garmin["date_only"] = garmin["Date"].dt.date
 
 dupes = garmin[garmin.duplicated(subset=["date_only"], keep=False)]
-print(dupes[["Date", "Title"]].sort_values("Date"))
+print(mergesort_dataframe(dupes[["Date", "Title"]], by="Date"))

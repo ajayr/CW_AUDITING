@@ -110,3 +110,52 @@ def test_tree_yearly_matches_pandas():
     expected = _pandas_yearly(ra.df)
     actual = ra.YearlySummary()
     pd.testing.assert_frame_equal(actual, expected)
+
+
+# ───────────────────────────────────────────────
+# Tests: Custom mergesort
+# ───────────────────────────────────────────────
+from analytics.mergesort import mergesort, mergesort_dataframe
+
+
+def test_mergesort_integers():
+    assert mergesort([3, 1, 4, 1, 5, 9, 2, 6]) == [1, 1, 2, 3, 4, 5, 6, 9]
+
+
+def test_mergesort_strings():
+    assert mergesort(["banana", "apple", "cherry"]) == ["apple", "banana", "cherry"]
+
+
+def test_mergesort_with_key():
+    items = [{"name": "b", "val": 2}, {"name": "a", "val": 1}, {"name": "c", "val": 3}]
+    result = mergesort(items, key=lambda x: x["val"])
+    assert [r["name"] for r in result] == ["a", "b", "c"]
+
+
+def test_mergesort_reverse():
+    assert mergesort([3, 1, 2], reverse=True) == [3, 2, 1]
+
+
+def test_mergesort_empty_and_single():
+    assert mergesort([]) == []
+    assert mergesort([42]) == [42]
+
+
+def test_mergesort_dataframe_matches_sort_values():
+    df = pd.DataFrame({
+        "Date": pd.to_datetime(["2024-03-01", "2024-01-15", "2024-02-10"]),
+        "value": [30, 10, 20],
+    })
+    expected = df.sort_values("Date").reset_index(drop=True)
+    actual = mergesort_dataframe(df, by="Date")
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+def test_mergesort_dataframe_with_nan():
+    df = pd.DataFrame({
+        "Date": pd.to_datetime(["2024-03-01", pd.NaT, "2024-01-15"]),
+        "value": [30, 20, 10],
+    })
+    expected = df.sort_values("Date").reset_index(drop=True)
+    actual = mergesort_dataframe(df, by="Date")
+    pd.testing.assert_frame_equal(actual, expected)

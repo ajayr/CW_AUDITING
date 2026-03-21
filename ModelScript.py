@@ -7,6 +7,7 @@ import shap
 import joblib
 from pathlib import Path
 import matplotlib as plt
+from analytics.mergesort import mergesort_dataframe
 
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.model_selection import TimeSeriesSplit
@@ -62,7 +63,7 @@ testProcessed  = Preprocess(test)
 featureCols   = [c for c in trainProcessed.columns if c != Target]
 testProcessed = testProcessed.reindex(columns=featureCols, fill_value=0)
 
-trainSorted     = train.sort_values("marathon_date")
+trainSorted     = mergesort_dataframe(train, by="marathon_date")
 trainProcSorted = Preprocess(trainSorted)
 
 Xall  = trainProcSorted[featureCols]
