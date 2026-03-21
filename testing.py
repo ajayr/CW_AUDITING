@@ -32,12 +32,12 @@ def time_str_to_minutes(time_str):
 # Test 1: Normal cases – valid HH:MM strings
 # ───────────────────────────────────────────────
 def test_time_conversion_normal():
-    assert time_str_to_minutes("00:08:45") == 525.0
-    assert time_str_to_minutes("00:14:30") == 870.0
-    assert time_str_to_minutes("00:00:15") == 15.0
-    assert time_str_to_minutes("00:23:00") == 1380.0
-    assert time_str_to_minutes("00:19:22") == (19 * 60 + 22)          # 1162.0
-    assert time_str_to_minutes("00:05:09") == pytest.approx(309.0)    # allows tiny float diff
+    assert time_str_to_minutes("00:08:45") == pytest.approx(8.75)       # 525s / 60
+    assert time_str_to_minutes("00:14:30") == pytest.approx(14.5)       # 870s / 60
+    assert time_str_to_minutes("00:00:15") == pytest.approx(0.25)       # 15s / 60
+    assert time_str_to_minutes("00:23:00") == pytest.approx(23.0)       # 1380s / 60
+    assert time_str_to_minutes("00:19:22") == pytest.approx((19*60+22)/60.0)  # 1162s / 60
+    assert time_str_to_minutes("00:05:09") == pytest.approx(309.0/60.0)       # 5.15 min
 
 
 # ───────────────────────────────────────────────
@@ -51,9 +51,13 @@ def test_time_conversion_boundary_min():
 # (you can move this to test 4/5 later)
 def test_time_conversion_invalid_becomes_nan():
     assert np.isnan(time_str_to_minutes("abc"))
-    assert np.isnan(time_str_to_minutes("25:00"))
     assert np.isnan(time_str_to_minutes(""))
     assert np.isnan(time_str_to_minutes("--"))
+
+
+def test_time_conversion_two_part_string():
+    # "25:00" is valid MM:SS → 25 minutes
+    assert time_str_to_minutes("25:00") == pytest.approx(25.0)
 
 
 # ───────────────────────────────────────────────
@@ -274,3 +278,346 @@ def test_deque_rolling_mean_single_value():
 
 def test_deque_rolling_mean_empty():
     assert _deque_rolling_mean([], window=4) == []
+
+
+# ═══════════════════════════════════════════════
+# DataLoader pipeline tests
+# ═══════════════════════════════════════════════
+
+def _make_dummy_loader():
+    """Create a DataLoaderClass instance without loading a file."""
+    return DataLoaderClass.__new__(DataLoaderClass)
+
+
+def test_pace_to_seconds():
+    loader = _make_dummy_loader()
+    assert loader._PaceToSeconds("5:30") == 330
+    assert loader._PaceToSeconds("0:00") == 0
+    assert np.isnan(loader._PaceToSeconds("--"))
+    assert np.isnan(loader._PaceToSeconds("abc"))
+    assert np.isnan(loader._PaceToSeconds(""))
+    assert np.isnan(loader._PaceToSeconds("n/a"))
+
+
+def test_convert_dates():
+    loader = _make_dummy_loader()
+    df = pd.DataFrame({"Date": ["2024-01-15", "invalid", "2024-03-01"]})
+    df = loader.ConvertDates(df)
+    assert pd.api.types.is_datetime64_any_dtype(df["Date"])
+    assert pd.notna(df["Date"].iloc[0])
+    assert pd.isna(df["Date"].iloc[1])
+    assert pd.notna(df["Date"].iloc[2])
+
+
+def test_convert_numeric_columns():
+    loader = _make_dummy_loader()
+    df = pd.DataFrame({
+        "Distance": ["10.5", "--", "1,234", "n/a", "5.0"],
+        "Avg HR": ["150", "nan", "160", "", "155"],
+    })
+    df = loader.ConvertNumericColumns(df)
+    assert df["Distance"].iloc[0] == pytest.approx(10.5)
+    assert np.isnan(df["Distance"].iloc[1])
+    assert df["Distance"].iloc[2] == pytest.approx(1234.0)
+    assert np.isnan(df["Distance"].iloc[3])
+    assert df["Avg HR"].iloc[0] == pytest.approx(150.0)
+    assert np.isnan(df["Avg HR"].iloc[1])
+
+
+def test_remove_duplicate_columns():
+    loader = _make_dummy_loader()
+    df = pd.DataFrame({"Col": [1], "Col.1": [2], "Other": [3]})
+    df = loader.RemoveDuplicateColumns(df)
+    assert "Col" in df.columns
+    assert "Col.1" not in df.columns
+    assert "Other" in df.columns
+
+
+def _make_synthetic_df():
+    """Minimal synthetic DataFrame with all columns needed by process()."""
+    return pd.DataFrame({
+        "Date": ["2024-06-15", "2024-06-20", "2024-07-01"],
+        "Distance": ["5.0", "10.0", "8.0"],
+        "Calories": ["300", "600", "480"],
+        "Avg HR": ["150", "160", "155"],
+        "Max HR": ["170", "180", "175"],
+        "Avg Pace": ["5:30", "6:00", "5:45"],
+        "Time": ["0:27:30", "1:00:00", "0:46:00"],
+    })
+
+
+def test_create_extra_columns():
+    loader = _make_dummy_loader()
+    df = _make_synthetic_df()
+    df = loader.ConvertDates(df)
+    df = loader.ConvertNumericColumns(df)
+    df = loader.ConvertPaceColumns(df)
+    df = loader.ConvertTimeColumns(df)
+    df = loader.CreateExtraColumns(df)
+
+    assert "hr_efficiency" in df.columns
+    assert "speed_kmh" in df.columns
+    assert "year" in df.columns
+    assert "YearMonth" in df.columns
+    assert "duration_min" in df.columns
+    assert df["year"].iloc[0] == 2024
+    assert df["YearMonth"].iloc[0] == "2024-06"
+
+
+def test_process_pipeline_end_to_end():
+    df = _make_synthetic_df()
+    instance = DataLoaderClass.FromDataframe(df)
+    assert "Date" in instance.df.columns
+    assert "Avg Pace_sec" in instance.df.columns
+    assert "Time_sec" in instance.df.columns
+    assert "hr_efficiency" in instance.df.columns
+    assert "YearMonth" in instance.df.columns
+    assert len(instance.df) == 3
+    # Verify sorted by date
+    dates = instance.df["Date"].tolist()
+    assert dates == sorted(dates)
+
+
+def test_get_dataframe_returns_copy():
+    df = _make_synthetic_df()
+    instance = DataLoaderClass.FromDataframe(df)
+    copy = instance.GetDataframe()
+    copy["Distance"] = 999
+    assert (instance.df["Distance"] != 999).all()
+
+
+# ═══════════════════════════════════════════════
+# JoinedDataLoader tests
+# ═══════════════════════════════════════════════
+from analytics.JoinedDataLoader import JoinedDataLoaderClass
+
+
+def _load_joined():
+    csv_path = Path(__file__).resolve().parent / "data" / "JoinedRunWeather.csv"
+    return JoinedDataLoaderClass(csv_path)
+
+
+def test_weather_columns_created():
+    loader = _load_joined()
+    expected_cols = [
+        "heat_index", "humidity_temp_product", "temp_deviation",
+        "dew_point_discomfort", "wind_chill", "gust_ratio",
+        "running_stress_score", "cloud_fraction",
+    ]
+    for col in expected_cols:
+        assert col in loader.df.columns, f"Missing weather column: {col}"
+
+
+def test_get_weather_summary():
+    loader = _load_joined()
+    summary = loader.GetWeatherSummary()
+    assert isinstance(summary, pd.DataFrame)
+    assert "YearMonth" in summary.columns
+    for col in loader.WeatherCols:
+        assert col in summary.columns
+
+
+def test_get_available_cols():
+    loader = _load_joined()
+    available = loader.GetAvailableCols()
+    assert isinstance(available, list)
+    assert len(available) > 0
+    for col in available:
+        assert col in loader.df.columns
+        assert col in loader.AllSelectableCols
+
+
+def test_correlation_matrix_returns_png():
+    loader = _load_joined()
+    cols = ["Distance", "Avg HR"]
+    png_bytes = loader.CorrelationMatrixPng(cols)
+    assert isinstance(png_bytes, bytes)
+    assert len(png_bytes) > 0
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_correlation_matrix_raises_on_few_cols():
+    loader = _load_joined()
+    with pytest.raises(ValueError):
+        loader.CorrelationMatrixPng(["Distance"])
+
+
+# ═══════════════════════════════════════════════
+# App helper function tests
+# ═══════════════════════════════════════════════
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from app import FmtMinutes, BuildInputRow, app as flask_app
+
+
+def test_fmt_minutes():
+    assert FmtMinutes(240.5) == "4h 00m 30s"
+    assert FmtMinutes(0.0) == "0h 00m 00s"
+    assert FmtMinutes(90.0) == "1h 30m 00s"
+    assert FmtMinutes(61.5) == "1h 01m 30s"
+
+
+def test_build_input_row_returns_dataframe():
+    form = {
+        "target_finish_time": "4:00",
+        "personal_best": "4:30",
+        "marathon_weather": "Sunny",
+        "injury_severity": "None",
+        "injury_count": "0",
+        "course_difficulty": "Flat",
+        "running_experience_months": "24",
+        "resting_heart_rate_bpm": "60",
+        "vo2_max": "45",
+        "race_month": "4",
+    }
+    result = BuildInputRow(form)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
+
+
+def test_build_input_row_default_values():
+    form = {}
+    result = BuildInputRow(form)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
+
+
+# ═══════════════════════════════════════════════
+# Flask route tests
+# ═══════════════════════════════════════════════
+
+@pytest.fixture
+def client():
+    flask_app.config["TESTING"] = True
+    with flask_app.test_client() as c:
+        yield c
+
+
+def test_home_route(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+
+
+def test_dashboard_route(client):
+    resp = client.get("/dashboard")
+    assert resp.status_code == 200
+
+
+def test_chart_route_valid(client):
+    resp = client.get("/chart/distance_over_time")
+    assert resp.status_code == 200
+    assert resp.content_type == "image/png"
+
+
+def test_chart_route_invalid(client):
+    resp = client.get("/chart/nonexistent")
+    assert resp.status_code == 404
+
+
+def test_predict_get(client):
+    resp = client.get("/predict")
+    assert resp.status_code == 200
+
+
+def test_heatmap_get(client):
+    resp = client.get("/heatmap")
+    assert resp.status_code == 200
+
+
+# ═══════════════════════════════════════════════
+# Chart generator tests
+# ═══════════════════════════════════════════════
+
+def test_distance_chart_returns_bytes():
+    ra = _load_analytics()
+    chart = DistanceOverTimeChart()
+    result = chart.generate(ra.df)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+
+
+def test_efficiency_chart_returns_bytes():
+    ra = _load_analytics()
+    chart = EfficiencyOverTimeChart()
+    result = chart.generate(ra.df)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+
+
+def test_efficiency_chart_empty_df():
+    chart = EfficiencyOverTimeChart()
+    empty_df = pd.DataFrame({"hr_efficiency": [], "Date": []})
+    result = chart.generate(empty_df)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+
+
+def test_weekly_chart_returns_bytes():
+    ra = _load_analytics()
+    chart = WeeklyLoadVsPaceChart()
+    result = chart.generate(ra.df)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+
+
+# ═══════════════════════════════════════════════
+# DateHierarchyTree edge cases
+# ═══════════════════════════════════════════════
+
+def test_tree_empty_dataframe():
+    df = pd.DataFrame({"year": [], "YearMonth": [], "Date": [],
+                        "Distance": [], "Avg HR": [], "Avg Pace_sec": [],
+                        "Calories": []})
+    tree = DateHierarchyTree(df)
+    monthly = tree.monthly_summary()
+    yearly = tree.yearly_summary()
+    assert len(monthly) == 0
+    assert len(yearly) == 0
+
+
+def test_tree_single_run():
+    df = pd.DataFrame({
+        "year": [2024], "YearMonth": ["2024-03"], "Date": ["2024-03-15"],
+        "Distance": [10.0], "Avg HR": [150.0], "Avg Pace_sec": [360.0],
+        "Calories": [500.0],
+    })
+    tree = DateHierarchyTree(df)
+    monthly = tree.monthly_summary()
+    assert len(monthly) == 1
+    assert monthly.iloc[0]["total_distance"] == 10.0
+    assert monthly.iloc[0]["run_count"] == 1
+
+    yearly = tree.yearly_summary()
+    assert len(yearly) == 1
+    assert yearly.iloc[0]["total_distance"] == 10.0
+
+
+# ═══════════════════════════════════════════════
+# HashTable edge case
+# ═══════════════════════════════════════════════
+
+def test_hashtable_getitem_raises_keyerror():
+    ht = HashTable({"a": 1})
+    with pytest.raises(KeyError):
+        _ = ht["missing"]
+
+
+# ═══════════════════════════════════════════════
+# Savitzky-Golay filter tests
+# ═══════════════════════════════════════════════
+
+def test_savitzky_golay_filter_validation():
+    chart = DistanceOverTimeChart()
+    with pytest.raises(ValueError):
+        chart._savitzky_golay_filter(window_length=4)  # even
+    with pytest.raises(ValueError):
+        chart._savitzky_golay_filter(window_length=1)  # too small
+    with pytest.raises(ValueError):
+        chart._savitzky_golay_filter(window_length=5, polyorder=5)  # polyorder >= window
+
+
+def test_apply_savitzky_golay_preserves_length():
+    chart = DistanceOverTimeChart()
+    series = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
+    result = chart._apply_savitzky_golay_filter(series, window=5, order=2)
+    assert len(result) == len(series)
