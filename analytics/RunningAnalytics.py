@@ -1,29 +1,21 @@
 import pandas as pd
 from analytics.DataLoader import DataLoaderClass
+from analytics.DateHierarchyTree import DateHierarchyTree
 
 class RunningAnalyticsClass(DataLoaderClass):
+
+    def __init__(self, Filepath):
+        super().__init__(Filepath)
+        self._date_tree = DateHierarchyTree(self.df)
+
+    @classmethod
+    def FromDataframe(cls, df: pd.DataFrame):
+        instance = super().FromDataframe(df)
+        instance._date_tree = DateHierarchyTree(instance.df)
+        return instance
+
     def MonthlySummary(self) -> pd.DataFrame:
-        return (
-            self.df.groupby("YearMonth")
-            .agg(
-                total_distance=("Distance",     "sum"),
-                avg_hr=        ("Avg HR",       "mean"),
-                avg_pace_s=    ("Avg Pace_sec", "mean"),
-                run_count=     ("Distance",     "count"),
-                total_calories=("Calories",     "sum"),
-            )
-            .reset_index()
-        )
+        return self._date_tree.monthly_summary()
 
     def YearlySummary(self) -> pd.DataFrame:
-        return (
-            self.df.groupby("year")
-            .agg(
-                total_distance=("Distance",     "sum"),
-                avg_hr=        ("Avg HR",       "mean"),
-                avg_pace_s=    ("Avg Pace_sec", "mean"),
-                run_count=     ("Distance",     "count"),
-                total_calories=("Calories",     "sum"),
-            )
-            .reset_index()
-        )
+        return self._date_tree.yearly_summary()
