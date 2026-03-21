@@ -199,3 +199,78 @@ def test_mergesort_dataframe_with_nan():
     expected = df.sort_values("Date").reset_index(drop=True)
     actual = mergesort_dataframe(df, by="Date")
     pd.testing.assert_frame_equal(actual, expected)
+
+
+# ───────────────────────────────────────────────
+# Tests: Custom HashTable
+# ───────────────────────────────────────────────
+from analytics.hashtable import HashTable
+
+
+def test_hashtable_put_and_get():
+    ht = HashTable({"a": 1, "b": 2, "c": 3})
+    assert ht.get("a") == 1
+    assert ht.get("b") == 2
+    assert ht.get("c") == 3
+
+
+def test_hashtable_get_default():
+    ht = HashTable({"x": 10})
+    assert ht.get("missing") is None
+    assert ht.get("missing", 42) == 42
+
+
+def test_hashtable_contains():
+    ht = HashTable({"key": "val"})
+    assert "key" in ht
+    assert "other" not in ht
+
+
+def test_hashtable_collision_handling():
+    ht = HashTable(capacity=4)
+    for i in range(10):
+        ht.put(f"key{i}", i)
+    for i in range(10):
+        assert ht.get(f"key{i}") == i
+
+
+def test_hashtable_overwrite():
+    ht = HashTable()
+    ht.put("k", 1)
+    ht.put("k", 2)
+    assert ht.get("k") == 2
+    assert len(ht) == 1
+
+
+def test_hashtable_matches_dict_for_injury_course_maps():
+    injury_dict = {"None": 0, "Minor": 1, "Moderate": 2, "Severe": 3}
+    injury_ht = HashTable(injury_dict)
+    for key, val in injury_dict.items():
+        assert injury_ht.get(key) == val
+    assert injury_ht.get("Unknown", 0) == 0
+
+    course_dict = {"Flat": 0, "Mixed": 1, "Hilly": 2}
+    course_ht = HashTable(course_dict)
+    for key, val in course_dict.items():
+        assert course_ht.get(key) == val
+
+
+# ───────────────────────────────────────────────
+# Tests: Deque-based rolling mean
+# ───────────────────────────────────────────────
+from analytics.chart_generators import _deque_rolling_mean
+
+
+def test_deque_rolling_mean_matches_pandas():
+    values = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    expected = pd.Series(values).rolling(window=4, min_periods=1).mean().tolist()
+    actual = _deque_rolling_mean(values, window=4)
+    np.testing.assert_array_almost_equal(actual, expected)
+
+
+def test_deque_rolling_mean_single_value():
+    assert _deque_rolling_mean([5.0], window=4) == [5.0]
+
+
+def test_deque_rolling_mean_empty():
+    assert _deque_rolling_mean([], window=4) == []
