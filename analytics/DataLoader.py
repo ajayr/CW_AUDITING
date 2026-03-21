@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import re
+from analytics.mergesort import mergesort_dataframe
 
 class DataLoaderClass:
 
@@ -50,7 +51,7 @@ class DataLoaderClass:
         df = self.ConvertPaceColumns(df)
         df = self.ConvertTimeColumns(df)
         df = self.CreateExtraColumns(df)
-        df = df.sort_values("Date")
+        df = mergesort_dataframe(df, by="Date")
         df = df.reset_index(drop=True)
         return df
 

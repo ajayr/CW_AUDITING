@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.dates as mdates
 from analytics.RunningAnalytics import RunningAnalyticsClass
 from analytics.JoinedDataLoader import JoinedDataLoaderClass
+from analytics.mergesort import mergesort, mergesort_dataframe
 import pandas as pd
 
 
@@ -133,7 +134,7 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
             return self._ToPng(fig)
 
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-        df = df.dropna(subset=["Date"]).sort_values("Date")
+        df = mergesort_dataframe(df.dropna(subset=["Date"]), by="Date")
 
         if start_date:
             start = pd.to_datetime(start_date, errors="coerce")
@@ -256,7 +257,7 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
             ax.set_title("Weekly Training Load vs Best Pace")
             return self._ToPng(fig)
 
-        years = sorted(weekly["year"].unique())
+        years = mergesort(list(weekly["year"].unique()))
         norm  = plt.Normalize(vmin=min(years), vmax=max(years))
         cmap  = plt.cm.plasma
 

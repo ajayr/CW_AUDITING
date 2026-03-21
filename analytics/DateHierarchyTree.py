@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List
+from analytics.mergesort import mergesort
 
 
 def _isnan(val) -> bool:
@@ -132,15 +133,15 @@ class DateHierarchyTree:
     def monthly_summary(self) -> pd.DataFrame:
         """Recursive traversal: each MonthNode aggregates its RunNode children."""
         records = []
-        for year_node in sorted(self.years.values(), key=lambda y: y.year):
-            for ym_key in sorted(year_node.months.keys()):
+        for year_node in mergesort(list(self.years.values()), key=lambda y: y.year):
+            for ym_key in mergesort(list(year_node.months.keys())):
                 records.append(year_node.months[ym_key].aggregate())
         return pd.DataFrame(records)
 
     def yearly_summary(self) -> pd.DataFrame:
         """Recursive traversal: each YearNode aggregates across all its MonthNodes."""
         records = []
-        for year_node in sorted(self.years.values(), key=lambda y: y.year):
+        for year_node in mergesort(list(self.years.values()), key=lambda y: y.year):
             records.append(year_node.aggregate())
         result = pd.DataFrame(records)
         if "year" in result.columns:
