@@ -113,6 +113,46 @@ def test_tree_yearly_matches_pandas():
 
 
 # ───────────────────────────────────────────────
+# Tests: OOP – Abstract base classes & polymorphism
+# ───────────────────────────────────────────────
+from analytics.base_processor import BaseDataProcessor
+from analytics.chart_generators import (
+    ChartGenerator,
+    DistanceOverTimeChart,
+    EfficiencyOverTimeChart,
+    WeeklyLoadVsPaceChart,
+)
+
+
+def test_dataloader_is_base_data_processor():
+    ra = _load_analytics()
+    assert isinstance(ra, BaseDataProcessor)
+
+
+def test_joined_loader_is_base_data_processor():
+    from analytics.JoinedDataLoader import JoinedDataLoaderClass
+    csv_path = Path(__file__).resolve().parent / "data" / "JoinedRunWeather.csv"
+    loader = JoinedDataLoaderClass(csv_path)
+    assert isinstance(loader, BaseDataProcessor)
+
+
+def test_chart_generators_are_polymorphic():
+    charts = [DistanceOverTimeChart(), EfficiencyOverTimeChart(), WeeklyLoadVsPaceChart()]
+    for chart in charts:
+        assert isinstance(chart, ChartGenerator)
+
+
+def test_abstract_base_processor_not_instantiable():
+    with pytest.raises(TypeError):
+        BaseDataProcessor()
+
+
+def test_abstract_chart_generator_not_instantiable():
+    with pytest.raises(TypeError):
+        ChartGenerator()
+
+
+# ───────────────────────────────────────────────
 # Tests: Custom mergesort
 # ───────────────────────────────────────────────
 from analytics.mergesort import mergesort, mergesort_dataframe
