@@ -3,8 +3,9 @@ import numpy as np
 from pathlib import Path
 import re
 from analytics.mergesort import mergesort_dataframe
+from analytics.base_processor import BaseDataProcessor
 
-class DataLoaderClass:
+class DataLoaderClass(BaseDataProcessor):
 
     PaceCols = ['Avg Pace', 'Best Pace', 'Avg GAP']
     TimeCols = ['Time', 'Moving Time', 'Elapsed Time', 'Best Lap Time']
@@ -37,14 +38,14 @@ class DataLoaderClass:
     def FromDataframe(cls, df: pd.DataFrame):
         instance = cls.__new__(cls)
         instance.Filepath = Path("in-memory")
-        instance.df = instance.ProcessData(df.copy())
+        instance.df = instance.process(df.copy())
         return instance
 
     def LoadData(self):
         df = pd.read_csv(self.Filepath, low_memory=False)
-        return self.ProcessData(df)
+        return self.process(df)
 
-    def ProcessData(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.RemoveDuplicateColumns(df)
         df = self.ConvertDates(df)
         df = self.ConvertNumericColumns(df)

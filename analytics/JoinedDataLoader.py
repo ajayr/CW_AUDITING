@@ -43,8 +43,8 @@ class JoinedDataLoaderClass(DataLoaderClass):
         {"cmap": "bwr",      "title_colour": "#333333", "name": "Blue-White-Red"},
     ]
 
-    def ProcessData(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = super().ProcessData(df)
+    def process(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().process(df)
         df = self._CreateWeatherColumns(df)
         return df
 
