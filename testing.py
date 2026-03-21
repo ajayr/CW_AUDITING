@@ -54,3 +54,59 @@ def test_time_conversion_invalid_becomes_nan():
     assert np.isnan(time_str_to_minutes("25:00"))
     assert np.isnan(time_str_to_minutes(""))
     assert np.isnan(time_str_to_minutes("--"))
+
+
+# ───────────────────────────────────────────────
+# Tests: DateHierarchyTree matches pandas groupby
+# ───────────────────────────────────────────────
+import pandas as pd
+from pathlib import Path
+from analytics.DateHierarchyTree import DateHierarchyTree
+
+
+def _load_analytics():
+    from analytics.RunningAnalytics import RunningAnalyticsClass
+    csv_path = Path(__file__).resolve().parent / "data" / "GarminFullRunning.csv"
+    return RunningAnalyticsClass(csv_path)
+
+
+def _pandas_monthly(df):
+    return (
+        df.groupby("YearMonth")
+        .agg(
+            total_distance=("Distance",     "sum"),
+            avg_hr=        ("Avg HR",       "mean"),
+            avg_pace_s=    ("Avg Pace_sec", "mean"),
+            run_count=     ("Distance",     "count"),
+            total_calories=("Calories",     "sum"),
+        )
+        .reset_index()
+    )
+
+
+def _pandas_yearly(df):
+    return (
+        df.groupby("year")
+        .agg(
+            total_distance=("Distance",     "sum"),
+            avg_hr=        ("Avg HR",       "mean"),
+            avg_pace_s=    ("Avg Pace_sec", "mean"),
+            run_count=     ("Distance",     "count"),
+            total_calories=("Calories",     "sum"),
+        )
+        .reset_index()
+    )
+
+
+def test_tree_monthly_matches_pandas():
+    ra = _load_analytics()
+    expected = _pandas_monthly(ra.df)
+    actual = ra.MonthlySummary()
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+def test_tree_yearly_matches_pandas():
+    ra = _load_analytics()
+    expected = _pandas_yearly(ra.df)
+    actual = ra.YearlySummary()
+    pd.testing.assert_frame_equal(actual, expected)
