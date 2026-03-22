@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def _is_nan_like(val) -> bool:
-    """Check if a value is NaN or NaT — we need this because NaN doesn't
+    """Check if a value is NaN or NaT -- we need this because NaN doesn't
     compare normally, and we want NaN values to sort to the end (matching
     what pandas does by default).
     """
@@ -13,7 +13,7 @@ def _is_nan_like(val) -> bool:
 
 
 def _merge(left, right, key, reverse):
-    """The merge step of mergesort — combine two already-sorted lists into one.
+    """The merge step of mergesort -- combine two already-sorted lists into one.
 
     NaN values always go to the end regardless of sort direction, which
     keeps us consistent with how pandas handles missing data.
@@ -54,7 +54,7 @@ def _merge(left, right, key, reverse):
 def mergesort(items, key=None, reverse=False):
     """Sort a list using the classic divide-and-conquer mergesort algorithm.
 
-    Works like Python's built-in sorted() — supports a key function and
+    Works like Python's built-in sorted() -- supports a key function and
     reverse flag. Naturally stable, so equal elements keep their original order.
     """
     lst = list(items)
@@ -69,7 +69,7 @@ def mergesort(items, key=None, reverse=False):
 def mergesort_dataframe(df, by, ascending=True):
     """Sort a pandas DataFrame by a column using our custom mergesort.
 
-    This is a drop-in replacement for df.sort_values() — it returns a new
+    This is a drop-in replacement for df.sort_values() -- it returns a new
     DataFrame with a clean integer index, same as sort_values + reset_index.
     """
     values = df[by].tolist()

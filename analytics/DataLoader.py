@@ -8,7 +8,7 @@ from analytics.base_processor import BaseDataProcessor
 class DataLoaderClass(BaseDataProcessor):
     """Handles loading and cleaning Garmin running data from CSV files.
 
-    This is the workhorse of the data pipeline — it reads a CSV, cleans up
+    This is the workhorse of the data pipeline -- it reads a CSV, cleans up
     all the messy string values Garmin exports, converts paces and times
     into usable numbers, and adds derived columns like speed and efficiency.
     """
@@ -94,7 +94,7 @@ class DataLoaderClass(BaseDataProcessor):
         return df
 
     def ConvertNumericColumns(self, df):
-        """Clean up numeric columns — strip commas, handle Garmin's placeholder
+        """Clean up numeric columns -- strip commas, handle Garmin's placeholder
         strings like '--' and 'n/a', and coerce everything to actual numbers.
         """
         for col in self.NumCols:

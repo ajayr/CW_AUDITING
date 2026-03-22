@@ -12,7 +12,7 @@ from analytics.DataLoader import DataLoaderClass
 def time_str_to_minutes(time_str):
     """Convert a time string to minutes using the DataLoader's internal parser.
 
-    This is a test helper — we just need the _TimeToSeconds method without
+    This is a test helper -- we just need the _TimeToSeconds method without
     actually loading a CSV file, so we create a bare instance.
     """
     dummy_loader = DataLoaderClass.__new__(DataLoaderClass)
@@ -61,7 +61,7 @@ def _load_analytics():
 
 
 def _pandas_monthly(df):
-    """The old pandas groupby way of computing monthly stats — used as the reference."""
+    """The old pandas groupby way of computing monthly stats -- used as the reference."""
     return (
         df.groupby("YearMonth")
         .agg(
@@ -76,7 +76,7 @@ def _pandas_monthly(df):
 
 
 def _pandas_yearly(df):
-    """The old pandas groupby way of computing yearly stats — used as the reference."""
+    """The old pandas groupby way of computing yearly stats -- used as the reference."""
     return (
         df.groupby("year")
         .agg(

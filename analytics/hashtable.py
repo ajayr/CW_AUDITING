@@ -1,7 +1,7 @@
 class HashTable:
     """A simple hash table built from scratch with open addressing.
 
-    Uses linear probing to handle collisions — when two keys hash to the
+    Uses linear probing to handle collisions -- when two keys hash to the
     same slot, we just scan forward until we find an empty one. Automatically
     resizes when the table gets more than 70% full to keep lookups fast.
     """
@@ -45,7 +45,7 @@ class HashTable:
     def _resize(self):
         """Double the table size and re-insert everything.
 
-        This gets triggered when load factor exceeds 70% — without it,
+        This gets triggered when load factor exceeds 70% -- without it,
         probe chains get long and lookups slow down.
         """
         old_keys = self._keys
@@ -81,7 +81,7 @@ class HashTable:
         return found
 
     def __getitem__(self, key):
-        """Support table[key] access — raises KeyError if the key isn't found."""
+        """Support table[key] access -- raises KeyError if the key isn't found."""
         idx, found = self._probe(key)
         if not found:
             raise KeyError(key)

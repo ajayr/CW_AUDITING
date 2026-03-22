@@ -10,7 +10,7 @@ from retry_requests import retry
 OutputPath = Path(__file__).resolve().parent / "WeatherData.csv"
 
 if OutputPath.exists():
-    print(f"WeatherData.csv already exists at '{OutputPath}' — skipping generation.")
+    print(f"WeatherData.csv already exists at '{OutputPath}' -- skipping generation.")
 else:
     # ─────────────────────────────────────────────────────────── #API setup
     cacheSession = requests_cache.CachedSession('.cache', expire_after=-1)

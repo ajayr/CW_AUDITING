@@ -12,7 +12,7 @@ BASE        = Path(__file__).resolve().parent
 OUTPUT_PATH = BASE / "JoinedRunWeather.csv"
 
 if OUTPUT_PATH.exists():
-    print(f"JoinedRunWeather.csv already exists at '{OUTPUT_PATH}' — skipping generation.")
+    print(f"JoinedRunWeather.csv already exists at '{OUTPUT_PATH}' -- skipping generation.")
 else:
     garmin  = pd.read_csv(BASE / "GarminFullRunning.csv")
     weather = pd.read_csv(BASE / "WeatherData.csv")

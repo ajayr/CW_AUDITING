@@ -22,7 +22,7 @@ def _mean(values: list) -> float:
 
 @dataclass
 class RunNode:
-    """A single run — the leaf node of our date tree.
+    """A single run -- the leaf node of our date tree.
 
     Stores just the metrics we need for aggregation: distance, heart rate,
     pace, and calories.
@@ -47,7 +47,7 @@ class MonthNode:
     def aggregate(self) -> dict:
         """Roll up all runs in this month into summary stats.
 
-        We skip NaN values the same way pandas groupby does — sums ignore them,
+        We skip NaN values the same way pandas groupby does -- sums ignore them,
         means exclude them, and counts only tally non-NaN distances.
         """
         distances = [r.distance for r in self.runs if not _isnan(r.distance)]
@@ -111,7 +111,7 @@ class DateHierarchyTree:
     """A tree that organises runs by Year -> Month -> individual Run.
 
     Built once from a DataFrame at startup. Instead of using pandas groupby
-    for monthly/yearly summaries, we walk the tree recursively — same results,
+    for monthly/yearly summaries, we walk the tree recursively -- same results,
     but it's a proper tree traversal.
     """
 

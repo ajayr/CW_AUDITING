@@ -10,7 +10,7 @@ class VisualisationDashboardClass(RunningAnalyticsClass):
     """The main dashboard class that ties data loading and chart generation together.
 
     It inherits all the data loading and summary capabilities, and adds three
-    chart types. Each chart is handled by its own generator class — this class
+    chart types. Each chart is handled by its own generator class -- this class
     just wires them up and delegates.
     """
 

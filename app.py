@@ -121,7 +121,7 @@ def home():
 
 @app.route("/dashboard")
 def index():
-    """Main dashboard — shows monthly and yearly summary tables plus chart links."""
+    """Main dashboard -- shows monthly and yearly summary tables plus chart links."""
     monthly   = dashboard.MonthlySummary().to_dict(orient="records")
     yearly    = dashboard.YearlySummary().to_dict(orient="records")
     chartMeta = {k: v[0] for k, v in graphs.items()}
@@ -154,7 +154,7 @@ def get_chart(chart_name: str):
 
 @app.route("/heatmap", methods=["GET", "POST"])
 def heatmap():
-    """Correlation heatmap page — lets users pick columns and see how they relate."""
+    """Correlation heatmap page -- lets users pick columns and see how they relate."""
     error        = None
     selectedCols = []
     showChart    = False
@@ -192,7 +192,7 @@ def heatmap_chart():
 
 @app.route("/predict", methods=["GET", "POST"])
 def predict():
-    """Marathon finish time prediction — takes user inputs and runs the XGBoost model."""
+    """Marathon finish time prediction -- takes user inputs and runs the XGBoost model."""
     prediction = None
     error      = None
 

@@ -164,7 +164,7 @@ if not PredictionsPath.exists():
     print(submission.head(10))
 
 else:
-    print("\npredictions.csv already exists — skipping training.")
+    print("\npredictions.csv already exists -- skipping training.")
     print("Loading saved model for SHAP plots...")
     finalModel = joblib.load(ModelPath)
 #---------------------------------------------------------------------------------------------

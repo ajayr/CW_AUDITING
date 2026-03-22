@@ -13,7 +13,7 @@ from analytics.mergesort import mergesort, mergesort_dataframe
 def _deque_rolling_mean(values, window):
     """Calculate a rolling average using a fixed-size deque as the window.
 
-    Works just like pandas .rolling(window, min_periods=1).mean() — the first
+    Works just like pandas .rolling(window, min_periods=1).mean() -- the first
     few values get averaged with whatever's available, and once the deque fills
     up it automatically drops the oldest value.
     """
@@ -28,7 +28,7 @@ def _deque_rolling_mean(values, window):
 class ChartGenerator(ABC):
     """Base class that all chart types inherit from.
 
-    Provides the shared plumbing — creating figures, saving them to PNG,
+    Provides the shared plumbing -- creating figures, saving them to PNG,
     and applying Savitzky-Golay smoothing for trend lines. Subclasses
     just need to implement generate() with their specific chart logic.
     """
@@ -57,7 +57,7 @@ class ChartGenerator(ABC):
     def _savitzky_golay_filter(self, window_length=31, polyorder=3, deriv=0):
         """Compute the Savitzky-Golay convolution kernel.
 
-        This is the math behind smoothing noisy data — it fits a polynomial
+        This is the math behind smoothing noisy data -- it fits a polynomial
         to a sliding window of points. We build the kernel once, then convolve
         it across the whole signal.
         """
