@@ -6,6 +6,7 @@ from analytics.mergesort import mergesort
 
 
 def _isnan(val) -> bool:
+    """Safely check if something is NaN or NaT without blowing up on weird types."""
     try:
         return pd.isna(val)
     except (TypeError, ValueError):
@@ -13,6 +14,7 @@ def _isnan(val) -> bool:
 
 
 def _mean(values: list) -> float:
+    """Simple average that returns NaN for an empty list, matching how pandas does it."""
     if not values:
         return np.nan
     return sum(values) / len(values)
@@ -20,7 +22,11 @@ def _mean(values: list) -> float:
 
 @dataclass
 class RunNode:
-    """Leaf node: one individual run."""
+    """A single run — the leaf node of our date tree.
+
+    Stores just the metrics we need for aggregation: distance, heart rate,
+    pace, and calories.
+    """
     date: str
     distance: float
     avg_hr: float
@@ -30,17 +36,19 @@ class RunNode:
 
 @dataclass
 class MonthNode:
-    """Intermediate node: one Year-Month period (e.g. '2024-03')."""
+    """Groups all runs within a single month (like '2024-03').
+
+    The runs list grows as we build the tree, then aggregate() rolls
+    everything up into totals and averages.
+    """
     year_month: str
     runs: List[RunNode] = field(default_factory=list)
 
     def aggregate(self) -> dict:
-        """Recursively collect leaf data and compute monthly aggregation.
+        """Roll up all runs in this month into summary stats.
 
-        Matches pandas groupby behavior:
-        - sum: skips NaN, returns 0 if all NaN
-        - mean: skips NaN, returns NaN if all NaN
-        - count: counts non-NaN Distance values
+        We skip NaN values the same way pandas groupby does — sums ignore them,
+        means exclude them, and counts only tally non-NaN distances.
         """
         distances = [r.distance for r in self.runs if not _isnan(r.distance)]
         hrs = [r.avg_hr for r in self.runs if not _isnan(r.avg_hr)]
@@ -59,24 +67,29 @@ class MonthNode:
 
 @dataclass
 class YearNode:
-    """Intermediate node: one year (e.g. 2024)."""
+    """Groups all months within a single year.
+
+    Each month is stored by its YearMonth key (e.g. '2024-03') so we can
+    look them up or iterate in order.
+    """
     year: int
     months: Dict[str, MonthNode] = field(default_factory=dict)
 
     def get_or_create_month(self, year_month: str) -> MonthNode:
+        """Grab the MonthNode for this key, creating it if it doesn't exist yet."""
         if year_month not in self.months:
             self.months[year_month] = MonthNode(year_month=year_month)
         return self.months[year_month]
 
     def _collect_all_runs(self) -> List[RunNode]:
-        """Recursively gather all runs from child month nodes."""
+        """Gather every run across all months in this year into a flat list."""
         all_runs = []
         for month_node in self.months.values():
             all_runs.extend(month_node.runs)
         return all_runs
 
     def aggregate(self) -> dict:
-        """Recursively traverse month nodes to compute yearly aggregation."""
+        """Roll up the entire year by collecting runs from every month."""
         all_runs = self._collect_all_runs()
 
         distances = [r.distance for r in all_runs if not _isnan(r.distance)]
@@ -95,22 +108,29 @@ class YearNode:
 
 
 class DateHierarchyTree:
-    """Root of the date hierarchy: Year -> Month -> Run.
+    """A tree that organises runs by Year -> Month -> individual Run.
 
-    Built once from a DataFrame, then queried via recursive traversal.
+    Built once from a DataFrame at startup. Instead of using pandas groupby
+    for monthly/yearly summaries, we walk the tree recursively — same results,
+    but it's a proper tree traversal.
     """
 
     def __init__(self, df: pd.DataFrame):
+        """Build the tree from a processed DataFrame."""
         self.years: Dict[int, YearNode] = {}
         self._year_dtype = df["year"].dtype if "year" in df.columns else np.int64
         self._build(df)
 
     def _get_or_create_year(self, year: int) -> YearNode:
+        """Grab the YearNode, creating it on first access."""
         if year not in self.years:
             self.years[year] = YearNode(year=year)
         return self.years[year]
 
     def _build(self, df: pd.DataFrame) -> None:
+        """Walk through every row of the DataFrame and slot each run into
+        the right Year -> Month bucket.
+        """
         for _, row in df.iterrows():
             year_val = row.get("year")
             ym_val = row.get("YearMonth")
@@ -131,7 +151,7 @@ class DateHierarchyTree:
             ))
 
     def monthly_summary(self) -> pd.DataFrame:
-        """Recursive traversal: each MonthNode aggregates its RunNode children."""
+        """Walk every month node and aggregate its runs into one row per month."""
         records = []
         for year_node in mergesort(list(self.years.values()), key=lambda y: y.year):
             for ym_key in mergesort(list(year_node.months.keys())):
@@ -139,7 +159,7 @@ class DateHierarchyTree:
         return pd.DataFrame(records)
 
     def yearly_summary(self) -> pd.DataFrame:
-        """Recursive traversal: each YearNode aggregates across all its MonthNodes."""
+        """Walk every year node and aggregate all its months into one row per year."""
         records = []
         for year_node in mergesort(list(self.years.values()), key=lambda y: y.year):
             records.append(year_node.aggregate())

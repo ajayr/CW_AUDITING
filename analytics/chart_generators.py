@@ -11,7 +11,12 @@ from analytics.mergesort import mergesort, mergesort_dataframe
 
 
 def _deque_rolling_mean(values, window):
-    """Compute rolling mean with min_periods=1 using a fixed-size deque."""
+    """Calculate a rolling average using a fixed-size deque as the window.
+
+    Works just like pandas .rolling(window, min_periods=1).mean() — the first
+    few values get averaged with whatever's available, and once the deque fills
+    up it automatically drops the oldest value.
+    """
     result = []
     dq = deque(maxlen=window)
     for val in values:
@@ -21,21 +26,28 @@ def _deque_rolling_mean(values, window):
 
 
 class ChartGenerator(ABC):
-    """Abstract base class for all chart generators."""
+    """Base class that all chart types inherit from.
+
+    Provides the shared plumbing — creating figures, saving them to PNG,
+    and applying Savitzky-Golay smoothing for trend lines. Subclasses
+    just need to implement generate() with their specific chart logic.
+    """
 
     FigSize = (12, 5)
     Style   = "seaborn-v0_8-whitegrid"
 
     @abstractmethod
     def generate(self, df, **kwargs) -> bytes:
-        """Generate a chart from the given DataFrame. Returns PNG bytes."""
+        """Build the chart from the given data and return it as PNG bytes."""
         ...
 
     def _new_fig(self):
+        """Spin up a fresh matplotlib figure with our standard style applied."""
         plt.style.use(self.Style)
         return plt.subplots(figsize=self.FigSize)
 
     def _to_png(self, fig) -> bytes:
+        """Render a matplotlib figure to PNG bytes and clean up after ourselves."""
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight", dpi=120)
         buf.seek(0)
@@ -43,6 +55,12 @@ class ChartGenerator(ABC):
         return buf.read()
 
     def _savitzky_golay_filter(self, window_length=31, polyorder=3, deriv=0):
+        """Compute the Savitzky-Golay convolution kernel.
+
+        This is the math behind smoothing noisy data — it fits a polynomial
+        to a sliding window of points. We build the kernel once, then convolve
+        it across the whole signal.
+        """
         if window_length % 2 == 0:
             raise ValueError("window_length must be odd")
         if window_length < 3:
@@ -67,12 +85,18 @@ class ChartGenerator(ABC):
         return kernelcoeff
 
     def _apply_savitzky_golay_filter(self, series, window=31, order=3):
+        """Smooth a pandas Series using the Savitzky-Golay filter.
+
+        Automatically adjusts the window size if there aren't enough data points,
+        and pads the edges so we don't lose data at the boundaries.
+        """
         values = np.asarray(series.values, dtype=float)
         n = len(values)
 
         if n == 0:
             return pd.Series(values, index=series.index)
 
+        # Shrink the window if we don't have enough data
         if window > n:
             window = n if n % 2 == 1 else n - 1
 
@@ -86,6 +110,7 @@ class ChartGenerator(ABC):
 
         kernel = self._savitzky_golay_filter(window, order)
 
+        # Pad edges so the smoothed output is the same length as the input
         half = window // 2
         padded = np.pad(values, (half, half), mode="edge")
         smoothedsignal = np.convolve(padded, kernel[::-1], mode="valid")
@@ -94,9 +119,14 @@ class ChartGenerator(ABC):
 
 
 class DistanceOverTimeChart(ChartGenerator):
-    """Generates distance over time scatter + rolling avg + Savitzky-Golay trend."""
+    """Shows how running distance varies over time.
+
+    Plots each run as a dot, overlays a 4-run rolling average, and adds a
+    Savitzky-Golay smoothed trend line to see the big picture.
+    """
 
     def generate(self, df, **kwargs) -> bytes:
+        """Build the distance-over-time chart with rolling avg and trend line."""
         df = df.dropna(subset=["Distance", "Date"]).copy()
         df["Rolling"] = _deque_rolling_mean(df["Distance"].tolist(), window=4)
         sg_window = 61
@@ -136,9 +166,14 @@ class DistanceOverTimeChart(ChartGenerator):
 
 
 class EfficiencyOverTimeChart(ChartGenerator):
-    """Generates efficiency over time with daily resampling + Savitzky-Golay smoothing."""
+    """Tracks running efficiency (pace relative to heart rate) over time.
+
+    Resamples to daily data, interpolates gaps, and smooths with Savitzky-Golay
+    so you can see the long-term trend without the noise.
+    """
 
     def generate(self, df, **kwargs) -> bytes:
+        """Build the efficiency chart, optionally filtered to a date range."""
         start_date = kwargs.get("start_date")
         end_date = kwargs.get("end_date")
 
@@ -160,6 +195,7 @@ class EfficiencyOverTimeChart(ChartGenerator):
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
         df = mergesort_dataframe(df.dropna(subset=["Date"]), by="Date")
 
+        # Apply optional date range filters
         if start_date:
             start = pd.to_datetime(start_date, errors="coerce")
             if pd.notna(start):
@@ -183,8 +219,10 @@ class EfficiencyOverTimeChart(ChartGenerator):
             ax.set_title("Running Efficiency Over Time")
             return self._to_png(fig)
 
+        # Invert so higher = better (lower pace per heartbeat = more efficient)
         df["efficiency"] = 1.0 / df["hr_efficiency"]
 
+        # Resample to daily so smoothing follows calendar time, not run count
         daily = (
             df.set_index("Date")["efficiency"]
             .resample("D")
@@ -194,6 +232,7 @@ class EfficiencyOverTimeChart(ChartGenerator):
 
         n = len(daily)
 
+        # Pick a window that fits the data we have
         sg_window = min(21, n if n % 2 == 1 else n - 1)
         sg_order = 3
 
@@ -250,11 +289,17 @@ class EfficiencyOverTimeChart(ChartGenerator):
 
 
 class WeeklyLoadVsPaceChart(ChartGenerator):
-    """Generates weekly training load vs best pace scatter with regression curve."""
+    """Explores the relationship between weekly training volume and pace.
+
+    Aggregates runs by week, plots total load against the fastest pace that week,
+    and fits a regression curve to see if more training correlates with speed.
+    """
 
     def generate(self, df, **kwargs) -> bytes:
+        """Build the weekly load vs pace scatter plot with trend line."""
         df = df.dropna(subset=["week_start", "Avg Pace_sec"]).copy()
 
+        # Use TSS if available, otherwise fall back to duration
         df["load_metric"] = (
             df["Training Stress Score\u00ae"]
             .replace(0, np.nan)
@@ -271,6 +316,7 @@ class WeeklyLoadVsPaceChart(ChartGenerator):
             .dropna(subset=["total_load", "best_pace"])
         )
 
+        # Filter out weeks where we barely ran
         weekly = weekly[weekly["total_load"] > 5]
 
         if weekly.empty:
@@ -300,6 +346,7 @@ class WeeklyLoadVsPaceChart(ChartGenerator):
             zorder=2,
         )
 
+        # Fit a quadratic to show the general trend
         x      = weekly["total_load"].values
         y      = weekly["best_pace"].values
         coeffs = np.polyfit(x, y, deg=2)
@@ -310,11 +357,12 @@ class WeeklyLoadVsPaceChart(ChartGenerator):
                 linestyle="--", label="Regression curve", zorder=3)
 
         def SecToPace(sec, _):
+            """Format seconds as MM:SS for the y-axis labels."""
             sec = int(sec)
             return f"{sec // 60}:{sec % 60:02d}"
 
         ax.yaxis.set_major_formatter(plt.FuncFormatter(SecToPace))
-        ax.invert_yaxis()
+        ax.invert_yaxis()  # Faster pace (lower number) should be at the top
 
         cbar = fig.colorbar(scatter, ax=ax, pad=0.02)
         cbar.set_label("Year", fontsize=9)
