@@ -10,6 +10,12 @@ from analytics.DataLoader import DataLoaderClass
 
 
 class JoinedDataLoaderClass(DataLoaderClass):
+    """Extends the base loader with weather data and correlation analysis.
+
+    This handles the joined dataset that combines Garmin running data with
+    hourly weather observations. It derives things like heat index, wind chill,
+    and a running stress score so we can see how weather affects performance.
+    """
 
     WeatherCols = [
         'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
@@ -18,16 +24,16 @@ class JoinedDataLoaderClass(DataLoaderClass):
     ]
 
     AllSelectableCols = [
-        # Performance
+        # Performance metrics from the watch
         "Distance", "Avg Pace_sec", "Avg HR", "Max HR", "Calories",
         "duration_min", "speed_kmh", "hr_efficiency", "Aerobic TE",
         "Avg Run Cadence", "Avg Stride Length", "Avg Vertical Ratio",
         "Avg Vertical Oscillation", "Avg Ground Contact Time",
         "Total Ascent", "Total Descent", "Avg Power",
-        # Weather raw
+        # Raw weather readings
         "temperature_2m", "apparent_temperature", "relative_humidity_2m",
         "dew_point_2m", "cloud_cover", "wind_speed_10m", "wind_gusts_10m",
-        # Weather derived
+        # Weather-derived indices we calculate
         "heat_index", "humidity_temp_product", "temp_deviation",
         "dew_point_discomfort", "wind_chill", "gust_ratio",
         "running_stress_score", "cloud_fraction",
@@ -44,11 +50,18 @@ class JoinedDataLoaderClass(DataLoaderClass):
     ]
 
     def process(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Run the standard data cleaning, then tack on weather-derived columns."""
         df = super().process(df)
         df = self._CreateWeatherColumns(df)
         return df
 
     def _CreateWeatherColumns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate weather indices that might explain running performance.
+
+        Things like heat index, wind chill, and a composite 'running stress score'
+        that combines temperature discomfort, humidity, and wind into one number.
+        Each calculation only runs if the required raw columns are present.
+        """
         temperature   = df.get("temperature_2m")
         humidity      = df.get("relative_humidity_2m")
         dewPoint      = df.get("dew_point_2m")
@@ -91,6 +104,9 @@ class JoinedDataLoaderClass(DataLoaderClass):
         return df
 
     def GetWeatherSummary(self) -> pd.DataFrame:
+        """Get average weather conditions for each month — useful for spotting
+        seasonal patterns in the data.
+        """
         return (
             self.df.groupby("YearMonth")[self.WeatherCols]
             .mean()
@@ -98,9 +114,19 @@ class JoinedDataLoaderClass(DataLoaderClass):
         )
 
     def GetAvailableCols(self) -> list:
+        """Figure out which of our selectable columns actually exist in this dataset.
+
+        Not every column is always present (depends on what the watch recorded),
+        so we filter down to what's actually there.
+        """
         return [col for col in self.AllSelectableCols if col in self.df.columns]
 
     def CorrelationMatrixPng(self, SelectedCols: list, ThemeIndex: int = 0) -> bytes:
+        """Generate a correlation heatmap as a PNG image.
+
+        You need at least 2 valid columns or this will raise a ValueError.
+        The theme cycles through different color schemes each time you call it.
+        """
         validCols = [col for col in SelectedCols if col in self.df.columns]
 
         if len(validCols) < 2:
@@ -129,7 +155,7 @@ class JoinedDataLoaderClass(DataLoaderClass):
         )
 
         ax.set_title(
-            f"Correlation Matrix  ·  {theme['name']}",
+            f"Correlation Matrix  \u00b7  {theme['name']}",
             fontsize=14,
             pad=16,
             color=theme["title_colour"]

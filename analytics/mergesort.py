@@ -2,7 +2,10 @@ import pandas as pd
 
 
 def _is_nan_like(val) -> bool:
-    """Check if a value is NaN or NaT (sorts last, matching pandas default)."""
+    """Check if a value is NaN or NaT — we need this because NaN doesn't
+    compare normally, and we want NaN values to sort to the end (matching
+    what pandas does by default).
+    """
     try:
         return pd.isna(val)
     except (TypeError, ValueError):
@@ -10,7 +13,11 @@ def _is_nan_like(val) -> bool:
 
 
 def _merge(left, right, key, reverse):
-    """Merge two sorted lists into one sorted list."""
+    """The merge step of mergesort — combine two already-sorted lists into one.
+
+    NaN values always go to the end regardless of sort direction, which
+    keeps us consistent with how pandas handles missing data.
+    """
     result = []
     i = j = 0
     while i < len(left) and j < len(right):
@@ -20,6 +27,7 @@ def _merge(left, right, key, reverse):
         l_nan = _is_nan_like(lk)
         r_nan = _is_nan_like(rk)
 
+        # NaN values always sink to the bottom
         if l_nan and r_nan:
             pick_left = True
         elif l_nan:
@@ -44,12 +52,10 @@ def _merge(left, right, key, reverse):
 
 
 def mergesort(items, key=None, reverse=False):
-    """Divide-and-conquer mergesort. Returns a new sorted list.
+    """Sort a list using the classic divide-and-conquer mergesort algorithm.
 
-    Args:
-        items: Iterable to sort.
-        key: Optional function to extract comparison key (like sorted()).
-        reverse: If True, sort descending.
+    Works like Python's built-in sorted() — supports a key function and
+    reverse flag. Naturally stable, so equal elements keep their original order.
     """
     lst = list(items)
     if len(lst) <= 1:
@@ -61,15 +67,10 @@ def mergesort(items, key=None, reverse=False):
 
 
 def mergesort_dataframe(df, by, ascending=True):
-    """Sort a pandas DataFrame using mergesort on the given column.
+    """Sort a pandas DataFrame by a column using our custom mergesort.
 
-    Args:
-        df: DataFrame to sort.
-        by: Column name to sort by.
-        ascending: Sort ascending (True) or descending (False).
-
-    Returns:
-        A new DataFrame sorted by the specified column, with reset-ready index.
+    This is a drop-in replacement for df.sort_values() — it returns a new
+    DataFrame with a clean integer index, same as sort_values + reset_index.
     """
     values = df[by].tolist()
     indexed = list(range(len(values)))

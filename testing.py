@@ -1,26 +1,20 @@
-# testing.py
-"""
-Pytest file – Input & Inference section
-Tests 1–2: time string → minutes conversion using DataLoaderClass._TimeToSeconds
+"""Test suite for the running analytics project.
+
+Covers the full stack: data loading, tree aggregation, sorting, hashing,
+chart generation, Flask routes, and helper functions.
 """
 
 import pytest
 import numpy as np
-
-# Change 'dataloader' to match your actual file name
-# Examples:
-#   from dataloader import DataLoaderClass
-#   from DataLoader import DataLoaderClass
-from analytics.DataLoader import DataLoaderClass   # ← ← ← ADJUST THIS LINE
+from analytics.DataLoader import DataLoaderClass
 
 
-# Helper wrapper – mimics how your inference code probably uses this method
 def time_str_to_minutes(time_str):
+    """Convert a time string to minutes using the DataLoader's internal parser.
+
+    This is a test helper — we just need the _TimeToSeconds method without
+    actually loading a CSV file, so we create a bare instance.
     """
-    Calls the internal _TimeToSeconds method and converts result to minutes.
-    Returns float minutes or np.nan if invalid/unparseable.
-    """
-    # We create a dummy instance just to access the method (no real file needed)
     dummy_loader = DataLoaderClass.__new__(DataLoaderClass)
     seconds = dummy_loader._TimeToSeconds(time_str)
     if np.isnan(seconds):
@@ -28,9 +22,7 @@ def time_str_to_minutes(time_str):
     return seconds / 60.0
 
 
-# ───────────────────────────────────────────────
-# Test 1: Normal cases – valid HH:MM strings
-# ───────────────────────────────────────────────
+# ── Time string conversion ──────────────────────
 def test_time_conversion_normal():
     assert time_str_to_minutes("00:08:45") == pytest.approx(8.75)       # 525s / 60
     assert time_str_to_minutes("00:14:30") == pytest.approx(14.5)       # 870s / 60
@@ -40,15 +32,10 @@ def test_time_conversion_normal():
     assert time_str_to_minutes("00:05:09") == pytest.approx(309.0/60.0)       # 5.15 min
 
 
-# ───────────────────────────────────────────────
-# Test 2: Boundary minimum – 00:00
-# ───────────────────────────────────────────────
 def test_time_conversion_boundary_min():
     assert time_str_to_minutes("00:00") == 0.0
 
 
-# Optional: quick smoke test that invalid inputs become nan
-# (you can move this to test 4/5 later)
 def test_time_conversion_invalid_becomes_nan():
     assert np.isnan(time_str_to_minutes("abc"))
     assert np.isnan(time_str_to_minutes(""))
@@ -60,21 +47,21 @@ def test_time_conversion_two_part_string():
     assert time_str_to_minutes("25:00") == pytest.approx(25.0)
 
 
-# ───────────────────────────────────────────────
-# Tests: DateHierarchyTree matches pandas groupby
-# ───────────────────────────────────────────────
+# ── Date hierarchy tree vs pandas groupby ────────
 import pandas as pd
 from pathlib import Path
 from analytics.DateHierarchyTree import DateHierarchyTree
 
 
 def _load_analytics():
+    """Spin up a RunningAnalyticsClass from the real Garmin CSV for integration tests."""
     from analytics.RunningAnalytics import RunningAnalyticsClass
     csv_path = Path(__file__).resolve().parent / "data" / "GarminFullRunning.csv"
     return RunningAnalyticsClass(csv_path)
 
 
 def _pandas_monthly(df):
+    """The old pandas groupby way of computing monthly stats — used as the reference."""
     return (
         df.groupby("YearMonth")
         .agg(
@@ -89,6 +76,7 @@ def _pandas_monthly(df):
 
 
 def _pandas_yearly(df):
+    """The old pandas groupby way of computing yearly stats — used as the reference."""
     return (
         df.groupby("year")
         .agg(
@@ -116,9 +104,7 @@ def test_tree_yearly_matches_pandas():
     pd.testing.assert_frame_equal(actual, expected)
 
 
-# ───────────────────────────────────────────────
-# Tests: OOP – Abstract base classes & polymorphism
-# ───────────────────────────────────────────────
+# ── OOP: abstract bases and polymorphism ─────────
 from analytics.base_processor import BaseDataProcessor
 from analytics.chart_generators import (
     ChartGenerator,
@@ -156,9 +142,7 @@ def test_abstract_chart_generator_not_instantiable():
         ChartGenerator()
 
 
-# ───────────────────────────────────────────────
-# Tests: Custom mergesort
-# ───────────────────────────────────────────────
+# ── Custom mergesort ─────────────────────────────
 from analytics.mergesort import mergesort, mergesort_dataframe
 
 
@@ -205,9 +189,7 @@ def test_mergesort_dataframe_with_nan():
     pd.testing.assert_frame_equal(actual, expected)
 
 
-# ───────────────────────────────────────────────
-# Tests: Custom HashTable
-# ───────────────────────────────────────────────
+# ── Custom hash table ────────────────────────────
 from analytics.hashtable import HashTable
 
 
@@ -259,9 +241,7 @@ def test_hashtable_matches_dict_for_injury_course_maps():
         assert course_ht.get(key) == val
 
 
-# ───────────────────────────────────────────────
-# Tests: Deque-based rolling mean
-# ───────────────────────────────────────────────
+# ── Deque-based rolling mean ─────────────────────
 from analytics.chart_generators import _deque_rolling_mean
 
 
@@ -280,11 +260,10 @@ def test_deque_rolling_mean_empty():
     assert _deque_rolling_mean([], window=4) == []
 
 
-# ═══════════════════════════════════════════════
-# DataLoader pipeline tests
-# ═══════════════════════════════════════════════
+# ── DataLoader pipeline ──────────────────────────
 
 def _make_dummy_loader():
+    """Create a bare DataLoaderClass without loading any file."""
     """Create a DataLoaderClass instance without loading a file."""
     return DataLoaderClass.__new__(DataLoaderClass)
 
@@ -334,6 +313,7 @@ def test_remove_duplicate_columns():
 
 
 def _make_synthetic_df():
+    """Build a tiny DataFrame with just enough columns to test the full pipeline."""
     """Minimal synthetic DataFrame with all columns needed by process()."""
     return pd.DataFrame({
         "Date": ["2024-06-15", "2024-06-20", "2024-07-01"],
@@ -386,13 +366,12 @@ def test_get_dataframe_returns_copy():
     assert (instance.df["Distance"] != 999).all()
 
 
-# ═══════════════════════════════════════════════
-# JoinedDataLoader tests
-# ═══════════════════════════════════════════════
+# ── JoinedDataLoader (weather + correlation) ─────
 from analytics.JoinedDataLoader import JoinedDataLoaderClass
 
 
 def _load_joined():
+    """Load the joined run+weather dataset for integration tests."""
     csv_path = Path(__file__).resolve().parent / "data" / "JoinedRunWeather.csv"
     return JoinedDataLoaderClass(csv_path)
 
@@ -442,9 +421,7 @@ def test_correlation_matrix_raises_on_few_cols():
         loader.CorrelationMatrixPng(["Distance"])
 
 
-# ═══════════════════════════════════════════════
-# App helper function tests
-# ═══════════════════════════════════════════════
+# ── App helper functions ─────────────────────────
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app import FmtMinutes, BuildInputRow, app as flask_app
@@ -482,9 +459,7 @@ def test_build_input_row_default_values():
     assert len(result) == 1
 
 
-# ═══════════════════════════════════════════════
-# Flask route tests
-# ═══════════════════════════════════════════════
+# ── Flask routes ─────────────────────────────────
 
 @pytest.fixture
 def client():
@@ -524,9 +499,7 @@ def test_heatmap_get(client):
     assert resp.status_code == 200
 
 
-# ═══════════════════════════════════════════════
-# Chart generator tests
-# ═══════════════════════════════════════════════
+# ── Chart generators ─────────────────────────────
 
 def test_distance_chart_returns_bytes():
     ra = _load_analytics()
@@ -560,9 +533,7 @@ def test_weekly_chart_returns_bytes():
     assert len(result) > 0
 
 
-# ═══════════════════════════════════════════════
-# DateHierarchyTree edge cases
-# ═══════════════════════════════════════════════
+# ── DateHierarchyTree edge cases ─────────────────
 
 def test_tree_empty_dataframe():
     df = pd.DataFrame({"year": [], "YearMonth": [], "Date": [],
@@ -592,9 +563,7 @@ def test_tree_single_run():
     assert yearly.iloc[0]["total_distance"] == 10.0
 
 
-# ═══════════════════════════════════════════════
-# HashTable edge case
-# ═══════════════════════════════════════════════
+# ── HashTable edge case ──────────────────────────
 
 def test_hashtable_getitem_raises_keyerror():
     ht = HashTable({"a": 1})
@@ -602,9 +571,7 @@ def test_hashtable_getitem_raises_keyerror():
         _ = ht["missing"]
 
 
-# ═══════════════════════════════════════════════
-# Savitzky-Golay filter tests
-# ═══════════════════════════════════════════════
+# ── Savitzky-Golay filter ────────────────────────
 
 def test_savitzky_golay_filter_validation():
     chart = DistanceOverTimeChart()

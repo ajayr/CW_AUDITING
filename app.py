@@ -1,3 +1,8 @@
+"""Flask web app for the running analytics dashboard.
+
+Ties together data loading, visualisation, correlation analysis,
+and marathon finish time prediction into a simple web interface.
+"""
 from flask import Flask, render_template, send_file, abort, request, session
 import io
 import joblib
@@ -13,22 +18,26 @@ app.secret_key = "running-analytics-secret"
 
 @app.context_processor
 def inject_request():
+    """Make the Flask request object available in all templates."""
     return dict(request=request)
 
 BaseDir      = Path(__file__).resolve().parent
 dashboard    = VisualisationDashboardClass(BaseDir / "data" / "GarminFullRunning.csv")
 joinedLoader = JoinedDataLoaderClass(BaseDir / "data" / "JoinedRunWeather.csv")
 
+# Pre-trained XGBoost model and its supporting artifacts for marathon prediction
 predictModel = joblib.load(BaseDir / "data" / "final_model.joblib")
 featureCols  = joblib.load(BaseDir / "data" / "feature_cols.joblib")
 trainMedians = joblib.load(BaseDir / "data" / "train_medians.joblib")
 
+# Maps chart URL slugs to (display title, generator function)
 graphs = {
     "distance_over_time":   ("Distance Over Time",           dashboard.DistanceOverTime),
     "efficiency_over_time": ("Running Efficiency Over Time", dashboard.EfficiencyOverTime),
     "weekly_load_vs_pace":  ("Weekly Training Load vs Pace", dashboard.WeeklyLoadVsPace),
 }
 
+# Column groups for the correlation heatmap page
 PerformanceCols = [
     "Distance", "Avg Pace_sec", "Avg HR", "Max HR", "Calories",
     "duration_min", "speed_kmh", "hr_efficiency", "Aerobic TE",
@@ -46,14 +55,22 @@ WeatherDerivedCols = [
     "running_stress_score", "cloud_fraction",
 ]
 
+# Encode categorical form inputs as numbers for the prediction model
 InjuryMap = HashTable({"None": 0, "Minor": 1, "Moderate": 2, "Severe": 3})
 CourseMap = HashTable({"Flat": 0, "Mixed": 1, "Hilly": 2})
 
 def _FilterExisting(cols):
+    """Trim a column list down to only the ones that actually exist in our data."""
     available = joinedLoader.GetAvailableCols()
     return [c for c in cols if c in available]
 
 def BuildInputRow(form) -> pd.DataFrame:
+    """Turn the prediction form submission into a single-row DataFrame
+    that the XGBoost model can consume.
+
+    Fills in training medians for any features the user didn't provide,
+    and one-hot encodes the marathon weather condition.
+    """
     targetStr  = form.get("target_finish_time", "4:00")
     h, m       = map(int, targetStr.split(":"))
     targetMins = h * 60 + m
@@ -64,6 +81,7 @@ def BuildInputRow(form) -> pd.DataFrame:
 
     weather = form.get("marathon_weather", "Sunny")
 
+    # Start with median values for all features, then override with user input
     row = dict(trainMedians)
 
     row["target_finish_time_minutes"] = targetMins
@@ -77,6 +95,7 @@ def BuildInputRow(form) -> pd.DataFrame:
     row["vo2_max"]                    = float(form.get("vo2_max", 45))
     row["race_month"]                 = int(form.get("race_month", 4))
 
+    # One-hot encode the weather: zero out all weather columns, then set the chosen one
     for col in featureCols:
         if col.startswith("marathon_weather_"):
             row[col] = 0
@@ -87,6 +106,7 @@ def BuildInputRow(form) -> pd.DataFrame:
     return df
 
 def FmtMinutes(mins: float) -> str:
+    """Format a decimal number of minutes into a human-friendly 'Xh YYm ZZs' string."""
     h = int(mins) // 60
     m = int(mins) % 60
     s = int(round((mins - int(mins)) * 60))
@@ -95,11 +115,13 @@ def FmtMinutes(mins: float) -> str:
 
 @app.route("/")
 def home():
+    """Landing page."""
     return render_template("home.html", active_tab="home")
 
 
 @app.route("/dashboard")
 def index():
+    """Main dashboard — shows monthly and yearly summary tables plus chart links."""
     monthly   = dashboard.MonthlySummary().to_dict(orient="records")
     yearly    = dashboard.YearlySummary().to_dict(orient="records")
     chartMeta = {k: v[0] for k, v in graphs.items()}
@@ -112,6 +134,7 @@ def index():
 
 @app.route("/chart/<chart_name>")
 def get_chart(chart_name: str):
+    """Serve a chart image as PNG. The efficiency chart also accepts date range params."""
     if chart_name not in graphs:
         abort(404)
 
@@ -131,6 +154,7 @@ def get_chart(chart_name: str):
 
 @app.route("/heatmap", methods=["GET", "POST"])
 def heatmap():
+    """Correlation heatmap page — lets users pick columns and see how they relate."""
     error        = None
     selectedCols = []
     showChart    = False
@@ -154,6 +178,7 @@ def heatmap():
 
 @app.route("/heatmap/chart", methods=["POST"])
 def heatmap_chart():
+    """Generate and serve the correlation heatmap PNG. Cycles through colour themes."""
     selectedCols              = request.form.getlist("columns")
     currentTheme              = session.get("theme_index", 0)
     session["theme_index"]    = (currentTheme + 1) % len(joinedLoader.Themes)
@@ -167,6 +192,7 @@ def heatmap_chart():
 
 @app.route("/predict", methods=["GET", "POST"])
 def predict():
+    """Marathon finish time prediction — takes user inputs and runs the XGBoost model."""
     prediction = None
     error      = None
 
