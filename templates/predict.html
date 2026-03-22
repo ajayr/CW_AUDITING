@@ -157,7 +157,7 @@
       <div class="field">
         <label>Weather forecast</label>
         <select name="marathon_weather">
-          <option {% if not request.form.get('marathon_weather') %}selected{% endif %}>— pick one —</option>
+          <option {% if not request.form.get('marathon_weather') %}selected{% endif %}>-- pick one --</option>
           {% for w in ['Sunny', 'Cloudy', 'Hot', 'Rainy', 'Windy'] %}
           <option value="{{w}}" {{ 'selected' if request.form.get('marathon_weather') == w }}>{{w}}</option>
           {% endfor %}
@@ -167,7 +167,7 @@
       <div class="field">
         <label>Which month?</label>
         <select name="race_month">
-          <option value="">—</option>
+          <option value="">--</option>
           {% set mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
           {% for i in range(1,13) %}
           <option value="{{i}}" {{ 'selected' if request.form.get('race_month')|int(default=0) == i }}>

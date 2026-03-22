@@ -132,7 +132,7 @@
 
     <!-- Raw Weather Variables -->
     <div class="card">
-        <div class="section-label">Weather — Raw</div>
+        <div class="section-label">Weather -- Raw</div>
         <div class="select-bar">
             <a onclick="toggleGroup('weather-raw', true)">Select all</a>
             <a onclick="toggleGroup('weather-raw', false)">Deselect all</a>
@@ -150,7 +150,7 @@
 
     <!-- Derived Weather Variables -->
     <div class="card">
-        <div class="section-label">Weather — Derived</div>
+        <div class="section-label">Weather -- Derived</div>
         <div class="select-bar">
             <a onclick="toggleGroup('weather-derived', true)">Select all</a>
             <a onclick="toggleGroup('weather-derived', false)">Deselect all</a>
@@ -175,7 +175,7 @@
 
 {% if show_chart %}
 <div class="chart-card">
-    <h2>Correlation Matrix — {{ selected_cols | length }} variables</h2>
+    <h2>Correlation Matrix -- {{ selected_cols | length }} variables</h2>
     <div class="spinner" id="spinner">Generating matrix…</div>
     <form id="chartForm" method="POST" action="/heatmap/chart" style="display:none;">
         {% for col in selected_cols %}

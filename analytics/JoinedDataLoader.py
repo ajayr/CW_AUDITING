@@ -104,7 +104,7 @@ class JoinedDataLoaderClass(DataLoaderClass):
         return df
 
     def GetWeatherSummary(self) -> pd.DataFrame:
-        """Get average weather conditions for each month — useful for spotting
+        """Get average weather conditions for each month -- useful for spotting
         seasonal patterns in the data.
         """
         return (
